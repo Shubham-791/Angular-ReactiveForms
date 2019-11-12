@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ViewChildren, ElementRef } from '@angular/core';
-import { FormBuilder, FormGroup, FormControl, FormArray, Validators, FormControlName } from '@angular/forms';
+import { FormBuilder, FormGroup, FormControl, FormArray, Validators, FormControlName, ValidatorFn, AbstractControl } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { Observable, Subscription, fromEvent, merge } from 'rxjs';
@@ -10,6 +10,40 @@ import { ProductService } from './product.service';
 
 import { NumberValidators } from '../shared/number.validator';
 import { GenericValidator } from '../shared/generic-validator';
+
+function tagMatcher(): ValidatorFn {
+  return (c: AbstractControl): { [key: string]: boolean } | null => {
+    debugger
+    console.log(c as FormArray);
+    let isArrayMatch = false, isControlMatch = false;
+    let controlErrors = {};
+    const controlArray = (c as FormArray).controls;
+    for (const [i1, refControl] of controlArray.entries()) {
+      isControlMatch = false;
+      for (const [i2, control] of controlArray.entries()) {
+        const matchError = (control.errors && control.errors.hasOwnProperty('match'))
+          || (refControl.errors && refControl.errors.hasOwnProperty('match'));
+        if (refControl.value === control.value && i1 !== i2) {
+          if (!matchError) {
+            control.setErrors({ 'match': true });
+          }
+          isControlMatch = true;
+          isArrayMatch = true;
+        }
+      }
+      if (!isControlMatch && refControl.errors) {
+        const errors = refControl.errors;
+        delete errors['match'];
+        if (!Object.keys(errors).length) {
+          refControl.setErrors(null);
+        } else {
+          refControl.setErrors(errors);
+        }
+      }
+    }
+    return isArrayMatch ? { 'match': true } : null;
+  }
+}
 
 @Component({
   templateUrl: './product-edit.component.html'
@@ -34,9 +68,9 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   constructor(private fb: FormBuilder,
-              private route: ActivatedRoute,
-              private router: Router,
-              private productService: ProductService) {
+    private route: ActivatedRoute,
+    private router: Router,
+    private productService: ProductService) {
 
     // Defines all of the validation messages for the form.
     // These could instead be retrieved from a file or database.
@@ -62,8 +96,8 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.productForm = this.fb.group({
       productName: ['', [Validators.required,
-                         Validators.minLength(3),
-                         Validators.maxLength(50)]],
+      Validators.minLength(3),
+      Validators.maxLength(50)]],
       productCode: ['', Validators.required],
       starRating: ['', NumberValidators.range(1, 5)],
       tags: this.fb.array([]),
@@ -88,7 +122,6 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
     // This is required because the valueChanges does not provide notification on blur
     const controlBlurs: Observable<any>[] = this.formInputElements
       .map((formControl: ElementRef) => fromEvent(formControl.nativeElement, 'blur'));
-
     // Merge the blur event observable with the valueChanges observable
     // so we only need to subscribe once.
     merge(this.productForm.valueChanges, ...controlBlurs).pipe(
@@ -134,7 +167,8 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
       starRating: this.product.starRating,
       description: this.product.description
     });
-    this.productForm.setControl('tags', this.fb.array(this.product.tags || []));
+    let productTags = this.product.tags.map(tag => [tag, Validators.minLength(3)]);
+    this.productForm.setControl('tags', this.fb.array(productTags || [], tagMatcher()));
   }
 
   deleteProduct(): void {

@@ -14,8 +14,8 @@ export class ProductDetailComponent implements OnInit {
   product: Product | undefined;
 
   constructor(private route: ActivatedRoute,
-              private router: Router,
-              private productService: ProductService) {
+    private router: Router,
+    private productService: ProductService) {
   }
 
   ngOnInit() {
@@ -27,10 +27,14 @@ export class ProductDetailComponent implements OnInit {
   }
 
   getProduct(id: number) {
-    this.productService.getProduct(id).subscribe({
-      next: product => this.product = product,
-      error: err => this.errorMessage = err
-    });
+    if (id === 0) {
+      this.errorMessage = 'Product with id 0 Not Found';
+    } else {
+      this.productService.getProduct(id).subscribe({
+        next: product => this.product = product,
+        error: err => this.errorMessage = err
+      });
+    }
   }
 
   onBack(): void {
