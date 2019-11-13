@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ViewChildren, ElementRef } from '@angular/core';
-import { FormBuilder, FormGroup, FormControl, FormArray, Validators, FormControlName, ValidatorFn, AbstractControl } from '@angular/forms';
+import { FormBuilder, FormGroup, FormControl, FormArray, Validators, FormControlName, ValidatorFn, AbstractControl, Validator } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { Observable, Subscription, fromEvent, merge } from 'rxjs';
@@ -13,20 +13,14 @@ import { GenericValidator } from '../shared/generic-validator';
 
 function tagMatcher(): ValidatorFn {
   return (c: AbstractControl): { [key: string]: boolean } | null => {
-    debugger
-    console.log(c as FormArray);
     let isArrayMatch = false, isControlMatch = false;
-    let controlErrors = {};
     const controlArray = (c as FormArray).controls;
+    let errorFormControls: Array<AbstractControl> = [];
     for (const [i1, refControl] of controlArray.entries()) {
       isControlMatch = false;
       for (const [i2, control] of controlArray.entries()) {
-        const matchError = (control.errors && control.errors.hasOwnProperty('match'))
-          || (refControl.errors && refControl.errors.hasOwnProperty('match'));
         if (refControl.value === control.value && i1 !== i2) {
-          if (!matchError) {
-            control.setErrors({ 'match': true });
-          }
+          control.setErrors({ 'match': true });
           isControlMatch = true;
           isArrayMatch = true;
         }
@@ -41,10 +35,18 @@ function tagMatcher(): ValidatorFn {
         }
       }
     }
+    errorFormControls = controlArray.filter((control: FormControl) => {
+      return control.errors && control.errors.hasOwnProperty('match');
+    });
+    if (errorFormControls.length) {
+      delete errorFormControls[0].errors['match'];
+      if (!Object.keys(errorFormControls[0].errors).length) {
+        errorFormControls[0].setErrors(null);
+      }
+    }
     return isArrayMatch ? { 'match': true } : null;
   }
 }
-
 @Component({
   templateUrl: './product-edit.component.html'
 })
@@ -132,7 +134,7 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   addTag(): void {
-    this.tags.push(new FormControl());
+    this.tags.push(new FormControl('', [Validators.minLength(3)]));
   }
 
   deleteTag(index: number): void {
@@ -147,7 +149,17 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
         error: err => this.errorMessage = err
       });
   }
-
+  // Unique Validator for FormControl Tag; doesn't work in all cases such as mutiple tags having the same name 
+  // all will be highlighted; after the matching tag is delted still the other tag shows the error because 
+  // the validator doesn't run, use formArray validator for that. 
+  tagControlMatcher(): ValidatorFn {
+    return (c: AbstractControl): { [key: string]: boolean } | null => {
+      const matchedControls = this.tags.controls.filter(refControl => {
+        return refControl.value === c.value;
+      });
+      return (matchedControls.length > 1) ? { 'match': true } : null;
+    }
+  }
   displayProduct(product: Product): void {
     if (this.productForm) {
       this.productForm.reset();
@@ -167,7 +179,7 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
       starRating: this.product.starRating,
       description: this.product.description
     });
-    let productTags = this.product.tags.map(tag => [tag, Validators.minLength(3)]);
+    let productTags = this.product.tags.map(tag => [tag, [Validators.minLength(3)]]);
     this.productForm.setControl('tags', this.fb.array(productTags || [], tagMatcher()));
   }
 
