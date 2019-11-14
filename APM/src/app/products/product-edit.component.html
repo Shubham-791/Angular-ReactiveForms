@@ -45,8 +45,7 @@
           <label class="col-md-2 col-form-label" [attr.for]="i">Tag</label>
 
           <div class="col-md-8">
-            <input class="form-control" [id]="i" type="text" placeholder="Tag" [formControlName]="i"
-              [ngClass]="{'is-invalid': tags.controls[i].errors}" />
+            <input class="form-control" #tagInput [id]="i" type="text" placeholder="Tag" [formControlName]="i" />
           </div>
           <button class="col-md-1 btn btn-outline-warning btn-sm" type="button" title="Delete this search tag"
             (click)="deleteTag(i)">Delete Tag

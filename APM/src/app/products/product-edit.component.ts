@@ -1,5 +1,8 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ViewChildren, ElementRef } from '@angular/core';
-import { FormBuilder, FormGroup, FormControl, FormArray, Validators, FormControlName, ValidatorFn, AbstractControl, Validator } from '@angular/forms';
+import {
+  FormBuilder, FormGroup, FormControl, FormArray, Validators, FormControlName,
+  ValidatorFn, AbstractControl, Validator
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { Observable, Subscription, fromEvent, merge } from 'rxjs';
@@ -11,52 +14,18 @@ import { ProductService } from './product.service';
 import { NumberValidators } from '../shared/number.validator';
 import { GenericValidator } from '../shared/generic-validator';
 
-function tagMatcher(): ValidatorFn {
-  return (c: AbstractControl): { [key: string]: boolean } | null => {
-    let isArrayMatch = false, isControlMatch = false;
-    const controlArray = (c as FormArray).controls;
-    let errorFormControls: Array<AbstractControl> = [];
-    for (const [i1, refControl] of controlArray.entries()) {
-      isControlMatch = false;
-      for (const [i2, control] of controlArray.entries()) {
-        if (refControl.value === control.value && i1 !== i2) {
-          control.setErrors({ 'match': true });
-          isControlMatch = true;
-          isArrayMatch = true;
-        }
-      }
-      if (!isControlMatch && refControl.errors) {
-        const errors = refControl.errors;
-        delete errors['match'];
-        if (!Object.keys(errors).length) {
-          refControl.setErrors(null);
-        } else {
-          refControl.setErrors(errors);
-        }
-      }
-    }
-    errorFormControls = controlArray.filter((control: FormControl) => {
-      return control.errors && control.errors.hasOwnProperty('match');
-    });
-    if (errorFormControls.length) {
-      delete errorFormControls[0].errors['match'];
-      if (!Object.keys(errorFormControls[0].errors).length) {
-        errorFormControls[0].setErrors(null);
-      }
-    }
-    return isArrayMatch ? { 'match': true } : null;
-  }
-}
+
 @Component({
   templateUrl: './product-edit.component.html'
 })
 export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChildren(FormControlName, { read: ElementRef }) formInputElements: ElementRef[];
+  @ViewChildren('tagInput', { read: ElementRef }) tagInputs: ElementRef[];
 
   pageTitle = 'Product Edit';
   errorMessage: string;
   productForm: FormGroup;
-
+  colorValMap: { [key: string]: string };
   product: Product;
   private sub: Subscription;
 
@@ -93,6 +62,8 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
     // Define an instance of the validator for use with this form,
     // passing in this form's set of validation messages.
     this.genericValidator = new GenericValidator(this.validationMessages);
+    this.colorValMap = {};
+
   }
 
   ngOnInit(): void {
@@ -160,6 +131,77 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
       return (matchedControls.length > 1) ? { 'match': true } : null;
     }
   }
+  tagMatcher(): ValidatorFn {
+    return (c: AbstractControl): { [key: string]: boolean } | null => {
+      let isArrayMatch = false, isControlMatch = false;
+      const controlArray = (c as FormArray).controls;
+      let errorFormControls: Array<AbstractControl> = [];
+      let errorFormControls2: { [key: string]: Array<AbstractControl> } = {};
+      this.borderResetForTag();
+      Object.assign(errorFormControls, controlArray);
+      controlArray.forEach((refControl, i1) => {
+        isControlMatch = false;
+        controlArray.forEach((control, i2) => {
+          if (refControl.value === control.value && i1 !== i2) {
+            control.setErrors({ 'match': true });
+            isControlMatch = true;
+            isArrayMatch = true;
+            if (errorFormControls2[control.value]) {
+              errorFormControls2[control.value].push(errorFormControls.splice(i2, 1)[0]);
+            } else {
+              errorFormControls2[control.value] = [errorFormControls.splice(i2, 1)[0]];
+            }
+          }
+        });
+        if (!isControlMatch && refControl.errors) {
+          const errors = refControl.errors;
+          delete errors['match'];
+          if (!Object.keys(errors).length) {
+            refControl.setErrors(null);
+          } else {
+            refControl.setErrors(errors);
+          }
+        }
+      });
+      Object.keys(errorFormControls2).forEach((keyVal) => {
+        if (!this.colorValMap[keyVal]) {
+          this.colorValMap[keyVal] = this.getRandomColor();
+        }
+        this.tagInputs.forEach((tagInput: ElementRef) => {
+          if (tagInput.nativeElement.value === keyVal) {
+            tagInput.nativeElement.style.border = `1px solid ${this.colorValMap[keyVal]}`;
+          }
+        });
+      });
+      console.log(this.tagInputs);
+      console.log(errorFormControls2);
+      // Code to highlight all the matches except the first one (quite custom ..)
+      // errorFormControls = controlArray.filter((control: FormControl) => {
+      //   return control.errors && control.errors.hasOwnProperty('match');
+      // });
+      // if (errorFormControls.length) {
+      //   console.log(errorFormControls);
+      //   delete errorFormControls[0].errors['match'];
+      //   if (!Object.keys(errorFormControls[0].errors).length) {
+      //     errorFormControls[0].setErrors(null);
+      //   }
+      // }
+      return isArrayMatch ? { 'match': true } : null;
+    }
+  }
+  borderResetForTag() {
+    this.tagInputs.forEach((tagInput: ElementRef) => {
+      tagInput.nativeElement.style.border = "";
+    });
+  }
+  getRandomColor() {
+    let letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  }
   displayProduct(product: Product): void {
     if (this.productForm) {
       this.productForm.reset();
@@ -180,7 +222,7 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
       description: this.product.description
     });
     let productTags = this.product.tags.map(tag => [tag, [Validators.minLength(3)]]);
-    this.productForm.setControl('tags', this.fb.array(productTags || [], tagMatcher()));
+    this.productForm.setControl('tags', this.fb.array(productTags || [], this.tagMatcher()));
   }
 
   deleteProduct(): void {
