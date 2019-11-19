@@ -159,11 +159,13 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
             isControlMatch = true;
             isArrayMatch = true;
             const errorFormControl = errorFormControls.splice(i2, 1)[0];
-            errorFormControl.markAsTouched();
-            if (errorFormControls2[control.value]) {
-              errorFormControls2[control.value].push(errorFormControl);
-            } else {
-              errorFormControls2[control.value] = [errorFormControl];
+            if (errorFormControl) {
+              errorFormControl.markAsTouched();
+              if (errorFormControls2[control.value]) {
+                errorFormControls2[control.value].push(errorFormControl);
+              } else {
+                errorFormControls2[control.value] = [errorFormControl];
+              }
             }
           }
         });
