@@ -1,0 +1,7 @@
+.tag-feedback {
+    font-size: small;
+    color: red;
+    position: relative;
+    left: calc(100%*1/6);
+    padding-left: 15px;
+}

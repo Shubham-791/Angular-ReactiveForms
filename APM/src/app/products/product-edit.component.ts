@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChildren, ElementRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChildren, ElementRef, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import {
   FormBuilder, FormGroup, FormControl, FormArray, Validators, FormControlName,
   ValidatorFn, AbstractControl, Validator
@@ -16,7 +16,9 @@ import { GenericValidator } from '../shared/generic-validator';
 
 
 @Component({
-  templateUrl: './product-edit.component.html'
+  templateUrl: './product-edit.component.html',
+  styleUrls: ['./product-edit.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChildren(FormControlName, { read: ElementRef }) formInputElements: ElementRef[];
@@ -31,6 +33,7 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Use with the generic validation message class
   displayMessage: { [key: string]: string } = {};
+  formArrayValidationMessages: Array<string> = [];
   private validationMessages: { [key: string]: { [key: string]: string } };
   private genericValidator: GenericValidator;
 
@@ -41,7 +44,8 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
-    private productService: ProductService) {
+    private productService: ProductService,
+    private changeDetector: ChangeDetectorRef) {
 
     // Defines all of the validation messages for the form.
     // These could instead be retrieved from a file or database.
@@ -56,14 +60,16 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       starRating: {
         range: 'Rate the product between 1 (lowest) and 5 (highest).'
+      },
+      tags: {
+        match: 'Duplicate Tag Name Used.Tag Names should be unique.',
+        minlength: 'Minlength of 3 characters is required for tag name.'
       }
     };
-
     // Define an instance of the validator for use with this form,
     // passing in this form's set of validation messages.
     this.genericValidator = new GenericValidator(this.validationMessages);
     this.colorValMap = {};
-
   }
 
   ngOnInit(): void {
@@ -101,6 +107,8 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
       debounceTime(800)
     ).subscribe(value => {
       this.displayMessage = this.genericValidator.processMessages(this.productForm);
+      this.formArrayValidationMessages = this.genericValidator.processFormArrayMessages(this.tags);
+      this.changeDetector.detectChanges();
     });
   }
 
@@ -135,10 +143,14 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
     return (c: AbstractControl): { [key: string]: boolean } | null => {
       let isArrayMatch = false, isControlMatch = false;
       const controlArray = (c as FormArray).controls;
+      // Contains the Reference From Controls for tag Inputs from tags formArray
       let errorFormControls: Array<AbstractControl> = [];
+      // Used for grouping the matching values present in tags form-controls by the values which they match for 
       let errorFormControls2: { [key: string]: Array<AbstractControl> } = {};
+      // Reset the border to none for tag formcontrol input elements
       this.borderResetForTag();
       Object.assign(errorFormControls, controlArray);
+      // Find the mathcing formControls having the same values and store them in erroFormControls2
       controlArray.forEach((refControl, i1) => {
         isControlMatch = false;
         controlArray.forEach((control, i2) => {
@@ -146,10 +158,12 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
             control.setErrors({ 'match': true });
             isControlMatch = true;
             isArrayMatch = true;
+            const errorFormControl = errorFormControls.splice(i2, 1)[0];
+            errorFormControl.markAsTouched();
             if (errorFormControls2[control.value]) {
-              errorFormControls2[control.value].push(errorFormControls.splice(i2, 1)[0]);
+              errorFormControls2[control.value].push(errorFormControl);
             } else {
-              errorFormControls2[control.value] = [errorFormControls.splice(i2, 1)[0]];
+              errorFormControls2[control.value] = [errorFormControl];
             }
           }
         });
@@ -163,6 +177,7 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         }
       });
+      // For each duplicate value map it to a random color(same color for same value rule) 
       Object.keys(errorFormControls2).forEach((keyVal) => {
         if (!this.colorValMap[keyVal]) {
           this.colorValMap[keyVal] = this.getRandomColor();
@@ -173,8 +188,7 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         });
       });
-      console.log(this.tagInputs);
-      console.log(errorFormControls2);
+      console.log(controlArray);
       // Code to highlight all the matches except the first one (quite custom ..)
       // errorFormControls = controlArray.filter((control: FormControl) => {
       //   return control.errors && control.errors.hasOwnProperty('match');

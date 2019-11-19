@@ -1,4 +1,4 @@
-import { FormGroup } from '@angular/forms';
+import { FormGroup, FormArray, AbstractControl } from '@angular/forms';
 
 // Generic validator for Reactive forms
 // Implemented as a class, not a service, so it can retain state for multiple forms.
@@ -50,7 +50,19 @@ export class GenericValidator {
     }
     return messages;
   }
-
+  processFormArrayMessages(c: FormArray): Array<string> {
+    let formArrayValidationMessages: Array<string> = [];
+    c.controls.forEach((control: AbstractControl, i: number) => {
+      formArrayValidationMessages.push('');
+      if ((control.dirty || control.touched) && control.errors) {
+        Object.keys(control.errors).map((messageKey: string) => {
+          return formArrayValidationMessages[i] = this.validationMessages['tags'][messageKey] + ' ';
+        });
+      }
+    });
+    console.log(Object.keys(c.controls));
+    return formArrayValidationMessages;
+  }
   getErrorCount(container: FormGroup): number {
     let errorCount = 0;
     for (const controlKey in container.controls) {

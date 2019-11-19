@@ -40,16 +40,18 @@
         </div>
       </div>
 
-      <div formArrayName="tags" [ngClass]="{'is-invalid':tags.errors}">
+      <div formArrayName="tags">
         <div class="form-group row mb-2" *ngFor="let tag of tags.controls; let i=index">
           <label class="col-md-2 col-form-label" [attr.for]="i">Tag</label>
-
           <div class="col-md-8">
             <input class="form-control" #tagInput [id]="i" type="text" placeholder="Tag" [formControlName]="i" />
           </div>
           <button class="col-md-1 btn btn-outline-warning btn-sm" type="button" title="Delete this search tag"
             (click)="deleteTag(i)">Delete Tag
           </button>
+          <span *ngIf="formArrayValidationMessages[i]" class="tag-feedback">
+            {{formArrayValidationMessages[i]}}
+          </span>
         </div>
       </div>
 
