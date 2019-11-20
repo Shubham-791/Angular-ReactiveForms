@@ -5,11 +5,11 @@ const path = require('path');
 const app = express();
 
 // Serve only the static files form the dist directory
-app.use(express.static(__dirname + '/dist/Angular-ReactiveForms'));
+app.use(express.static(__dirname + '/dist/apm'));
 
 app.get('/*', function (req, res) {
 
-    res.sendFile(path.join(__dirname + '/dist/Angular-ReactiveForms/index.html'));
+    res.sendFile(path.join(__dirname + '/dist/apm/index.html'));
 });
 
 // Start the app by listening on the default Heroku port
