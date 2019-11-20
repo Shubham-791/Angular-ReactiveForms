@@ -14,6 +14,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "path": "^0.12.7",
+    "webpack": "^4.41.0",
     "@angular/animations": "~8.2.4",
     "@angular/common": "~8.2.4",
     "@angular/compiler": "~8.2.4",
