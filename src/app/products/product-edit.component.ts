@@ -206,9 +206,11 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
   borderResetForTag() {
-    this.tagInputs.forEach((tagInput: ElementRef) => {
-      tagInput.nativeElement.style.border = "";
-    });
+    if (this.tagInputs) {
+      this.tagInputs.forEach((tagInput: ElementRef) => {
+        tagInput.nativeElement.style.border = "";
+      });
+    }
   }
   getRandomColor() {
     let letters = '0123456789ABCDEF';
@@ -237,8 +239,10 @@ export class ProductEditComponent implements OnInit, AfterViewInit, OnDestroy {
       starRating: this.product.starRating,
       description: this.product.description
     });
-    let productTags = this.product.tags.map(tag => [tag, [Validators.minLength(3)]]);
-    this.productForm.setControl('tags', this.fb.array(productTags || [], this.tagMatcher()));
+    if (this.product.tags) {
+      let productTags = this.product.tags.map(tag => [tag, [Validators.minLength(3)]]);
+      this.productForm.setControl('tags', this.fb.array(productTags || [], this.tagMatcher()));
+    }
   }
 
   deleteProduct(): void {
